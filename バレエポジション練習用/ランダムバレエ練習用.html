@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>バレエポジション練習</title>
+
+<style>
+body {
+  margin:0;
+  font-family:sans-serif;
+  text-align:center;
+  background:#f0f0f0;
+}
+
+.container {
+  max-width:420px;
+  margin:auto;
+  padding:20px;
+}
+
+button {
+  font-size:20px;
+  padding:10px;
+  margin:5px;
+  width: 100%;
+}
+
+button:disabled{
+  opacity: 0.5;
+}
+
+#text {
+  font-size:20px;
+}
+
+#countdown {
+  font-size:50px;
+  font-weight:bold;
+}
+
+#directionText {
+  margin-top:10px;
+}
+
+#answerText{
+  font-size:18px;
+  margin-bottom: 10px;
+}
+
+#legImage{
+    width: 40%;
+    height: auto;
+    max-height: 250px;
+}
+
+#handImage{
+    width: 40%;
+    height: auto;
+    max-height: 250px;
+}
+
+#resultArea {
+  display:flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+#resultArea img {
+  height: auto;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>ランダム<br>
+    バレエポジション練習</h1>
+
+  <button id="btn1" onclick="startGame(1)">1回</button>
+  <button id="btn5" onclick="startGame(5)">5回</button>
+  <button id="btn10" onclick="startGame(10)">10回</button>
+
+  <p id="text"></p>
+  <p id="countdown"></p>
+  <p id="directionText"></p>
+
+  <div id="resultArea">
+    <div id="answerText"></div>
+    <img id="legImage">
+    <img id="handImage">
+  </div>
+</div>
+
+<script>
+  let nextTimeout;
+  let isRunning = false;
+// 音声
+const directionVoices = {
+  "向き": ["アンファス","左斜め前のクロワゼ","右斜め前のクロワゼ","左斜め前のエファセ","右斜め前のエファセ"]
+};
+
+const legVoices = {
+  "足": ["1番ポジション","2番ポジション","3番ポジション","4番ポジション","5番ポジション"]
+};
+
+const handVoices = {
+  "手": ["アンバー","アンナバン","アラセゴン","アンオー"]
+};
+
+// 画像
+const legImages = {
+  "1番ポジション": "b1.jpg",
+  "2番ポジション": "b2.jpg",
+  "3番ポジション": "b3.jpg",
+  "4番ポジション": "b4.jpg",
+  "5番ポジション": "b5.jpg"
+};
+
+const handImages = {
+  "アンバー": "h2.jpg",
+  "アンナバン": "h1.jpg",
+  "アラセゴン": "h3.jpg",
+  "アンオー": "h4.jpg"
+};
+
+// 共通
+function getRandom(arr){
+  return arr[Math.floor(Math.random()*arr.length)];
+}
+
+// 音声
+function speakSequence(parts, onComplete){
+  const textEl = document.getElementById("text");
+  textEl.innerHTML = "";
+
+  function speakNext(i){
+    if(i >= parts.length){
+      if(onComplete) onComplete();
+      return;
+    }
+
+    const speech = new SpeechSynthesisUtterance(parts[i]);
+    speech.lang = "ja-JP";
+
+textEl.innerHTML =
+  parts.map((p,idx)=>
+    idx===i ? `<div style="color:red">${p}</div>` : `<div>${p}</div>`
+  ).join("");
+
+    speech.onend = ()=> setTimeout(()=>speakNext(i+1),300);
+    speechSynthesis.speak(speech);
+  }
+
+  speakNext(0);
+}
+
+
+//ボタン操作
+  function setButtonsDisabled(flag){
+    document.getElementById("btn1").disabled = flag;
+    document.getElementById("btn5").disabled = flag;
+    document.getElementById("btn10").disabled = flag;
+  }
+// カウントダウン
+let countdownInterval;
+
+function startCountdown(sec,onComplete){
+  const el=document.getElementById("countdown");
+  let t=sec;
+
+  el.innerText=t;
+
+  countdownInterval=setInterval(()=>{
+    t--;
+    el.innerText=t;
+
+    if(t<=0){
+      clearInterval(countdownInterval);
+      el.innerText="";
+      if(onComplete) onComplete();
+    }
+  },1000);
+}
+
+// 表示
+function showAnswer(direction,leg,hand){
+
+  document.getElementById("directionText").innerText = "";
+
+  document.getElementById("legImage").src = legImages[leg];
+  document.getElementById("handImage").src = handImages[hand];
+
+  document.getElementById("resultArea").style.display="flex";
+}
+
+// ゲーム
+let remainingRounds=0;
+
+function startGame(count){
+  if(isRunning) return;
+  resetGame();
+  isRunning = true;
+  setButtonsDisabled(true);
+  remainingRounds=count;
+  nextRound();
+}
+
+function nextRound(){
+  if(!isRunning) return;
+  if(remainingRounds<=0){
+    isRunning = false;
+    setButtonsDisabled(false);
+    return;
+  }
+
+  remainingRounds--;
+
+  const direction = getRandom(directionVoices["向き"]);
+  const leg = getRandom(legVoices["足"]);
+  const hand = getRandom(handVoices["手"]);
+
+  const parts=[direction,leg,hand];
+
+  document.getElementById("resultArea").style.display="none";
+
+  speakSequence(parts,()=>{
+    startCountdown(5,()=>{
+      showAnswer(direction,leg,hand);
+
+      nextTimeout = setTimeout(()=>nextRound(),5000);
+    });
+  });
+}
+
+// リセット
+function resetGame(){
+  clearInterval(countdownInterval);
+  clearTimeout(nextTimeout);
+  speechSynthesis.cancel();
+
+  isRunning = false;
+  setButtonsDisabled(false);
+
+  document.getElementById("text").innerHTML="";
+  document.getElementById("countdown").innerText="";
+  document.getElementById("directionText").innerText="";
+  document.getElementById("resultArea").style.display="none";
+}
+</script>
+
+</body>
+</html>
